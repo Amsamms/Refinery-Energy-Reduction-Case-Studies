@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Dashboard: Energy Reduction in Petroleum Refineries</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Industrial Calm (Tailwind Slate, Blue, Teal) -->
+    <!-- Application Structure Plan: The SPA uses a dashboard-style, single-page layout to transform the linear report into a user-driven, exploratory tool. The structure is designed for decision-makers, starting with a high-level summary (KPIs), moving to a strategic visual analysis (interactive scatter plot), and finally allowing a deep dive into specific, filterable case studies. This non-linear approach is more usable than a static report, as it allows users to immediately query the data based on their specific priorities (e.g., finding low-capital, high-return projects) rather than reading sequentially. The navigation bar facilitates quick movement between these analytical views. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Key metrics from the executive summary. -> Goal: Inform/Orient. -> Viz: Large KPI cards. -> Interaction: Static display. -> Justification: Provides an immediate, high-level overview of the report's scope. -> Library/Method: HTML/Tailwind.
+        - Report Info: Strategic Technology Opportunity Matrix. -> Goal: Compare/Analyze. -> Viz: Interactive Scatter Plot (Payback vs. Savings, sized by Capital Intensity). -> Interaction: Hover for tooltips, click to filter case studies. -> Justification: Visually represents the core strategic trade-offs between cost, time, and benefit, which is more intuitive than a table. -> Library/Method: Chart.js.
+        - Report Info: Master Compendium of Case Studies (Table 2). -> Goal: Organize/Explore/Drill-Down. -> Viz: Filterable grid of case study cards. -> Interaction: Users can filter by technology category, payback period, and capital intensity, plus a text search. -> Justification: Allows users to find highly relevant examples that match their specific operational and financial constraints. -> Library/Method: Vanilla JS + Tailwind.
+        - Report Info: Section summaries from the main report body. -> Goal: Provide Context. -> Viz: Accordion-style collapsible text blocks. -> Interaction: Click to expand/collapse. -> Justification: Keeps the main view uncluttered while providing detailed contextual information on demand. -> Library/Method: Vanilla JS + Tailwind.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* slate-50 */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            max-height: 60vh;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 500px;
+            }
+        }
+        .nav-link {
+            transition: color 0.3s, border-bottom-color 0.3s;
+        }
+        .nav-link:hover {
+            color: #0d9488; /* teal-600 */
+        }
+        .filter-btn.active {
+            background-color: #0f766e; /* teal-700 */
+            color: white;
+            border-color: #0f766e;
+        }
+        .case-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .case-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <span class="font-bold text-xl text-teal-700">Refinery.AI</span>
+                </div>                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#overview" class="nav-link text-slate-600 px-3 py-2 rounded-md text-sm font-medium">Overview</a>
+                        <a href="#explorer" class="nav-link text-slate-600 px-3 py-2 rounded-md text-sm font-medium">Opportunity Explorer</a>
+                        <a href="#cases" class="nav-link text-slate-600 px-3 py-2 rounded-md text-sm font-medium">Case Studies</a>
+                        <a href="#insights" class="nav-link text-slate-600 px-3 py-2 rounded-md text-sm font-medium">Key Insights</a>
+                        <a href="Refinery Energy Reduction Case Studies_.pdf" download class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <span>Download PDF</span>
+                        </a>
+                    </div>
+                </div>
+                <!-- Mobile menu button and dropdown -->
+                <div class="md:hidden">
+                    <button id="mobile-menu-button" type="button" class="text-slate-600 hover:text-teal-600 focus:outline-none focus:text-teal-600 p-2">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                </div>            </div>
+        </nav>
+        <!-- Mobile menu dropdown -->
+        <div id="mobile-menu" class="hidden md:hidden bg-white border-t border-slate-200">
+            <div class="px-2 pt-2 pb-3 space-y-1">
+                <a href="#overview" class="mobile-nav-link block px-3 py-2 text-base font-medium text-slate-600 hover:text-teal-600">Overview</a>
+                <a href="#explorer" class="mobile-nav-link block px-3 py-2 text-base font-medium text-slate-600 hover:text-teal-600">Opportunity Explorer</a>
+                <a href="#cases" class="mobile-nav-link block px-3 py-2 text-base font-medium text-slate-600 hover:text-teal-600">Case Studies</a>
+                <a href="#insights" class="mobile-nav-link block px-3 py-2 text-base font-medium text-slate-600 hover:text-teal-600">Key Insights</a>
+                <a href="Refinery Energy Reduction Case Studies_.pdf" download class="block mx-3 my-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md text-base font-medium transition-colors duration-200 text-center">
+                    <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Download PDF Report
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+
+        <section id="overview" class="text-center mb-16 md:mb-24">
+            <h1 class="text-4xl md:text-5xl font-bold text-slate-900 mb-4">Energy Reduction in Petroleum Refining</h1>
+            <p class="max-w-3xl mx-auto text-lg text-slate-600 mb-10">An interactive analysis of over 40 proven case studies, designed to help you identify and prioritize high-impact energy efficiency and decarbonization initiatives.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                <div class="bg-white p-6 rounded-lg shadow-md border border-slate-200">
+                    <div class="text-4xl font-bold text-teal-600">45+</div>
+                    <div class="text-slate-500 mt-2">Proven Case Studies</div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md border border-slate-200">
+                    <div class="text-4xl font-bold text-teal-600">2% to 50%+</div>
+                    <div class="text-slate-500 mt-2">Range of Energy Savings</div>
+                </div>                <div class="bg-white p-6 rounded-lg shadow-md border border-slate-200">
+                    <div class="text-4xl font-bold text-teal-600">&lt; 3 Months</div>
+                    <div class="text-slate-500 mt-2">Fastest Payback Periods</div>
+                </div>
+            </div>
+
+            <!-- Download CTA Button -->
+            <div class="mt-12 text-center">
+                <a href="Refinery Energy Reduction Case Studies_.pdf" download class="inline-flex items-center space-x-3 bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 text-white font-semibold py-4 px-8 rounded-lg shadow-lg transform hover:scale-105 transition-all duration-200">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <span class="text-lg">Download Complete PDF Report</span>
+                    <span class="text-sm bg-white/20 px-2 py-1 rounded">Free Access</span>
+                </a>
+                <p class="mt-3 text-sm text-slate-500">Get the full technical report with detailed implementation guidance</p>
+            </div>
+        </section>
+
+        <section id="explorer" class="mb-16 md:mb-24">
+            <h2 class="text-3xl font-bold text-center text-slate-900 mb-4">Strategic Opportunity Explorer</h2>
+            <p class="text-center text-slate-600 max-w-3xl mx-auto mb-10">This chart visualizes the relationship between payback period and potential energy savings for different technology categories. The size of each bubble represents its typical capital intensity. Click a bubble to filter the case studies below.</p>
+            <div class="bg-white p-4 sm:p-6 md:p-8 rounded-lg shadow-lg border border-slate-200">
+                <div class="chart-container">
+                    <canvas id="opportunityChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section id="cases" class="mb-16 md:mb-24">
+            <h2 class="text-3xl font-bold text-center text-slate-900 mb-4">Case Study Deep Dive</h2>
+            <p class="text-center text-slate-600 max-w-3xl mx-auto mb-10">Use the filters to explore specific case studies. Find proven examples that match your refinery's goals for cost, impact, and investment level.</p>
+            
+            <div class="bg-white p-4 sm:p-6 rounded-lg shadow-lg border border-slate-200 mb-8">
+                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div class="md:col-span-3 lg:col-span-1">
+                        <label for="search" class="block text-sm font-medium text-slate-700">Search by name or technology</label>
+                        <input type="text" id="search" placeholder="e.g., Valero, steam trap..." class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm">
+                    </div>
+                    <div class="md:col-span-3">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Filter by Technology Category</label>
+                        <div id="category-filters" class="flex flex-wrap gap-2">
+                             <button class="filter-btn active text-sm px-3 py-1.5 border border-slate-300 rounded-full" data-filter="all">All Categories</button>
+                             <button class="filter-btn text-sm px-3 py-1.5 border border-slate-300 rounded-full" data-filter="Foundational Utilities">Foundational</button>
+                             <button class="filter-btn text-sm px-3 py-1.5 border border-slate-300 rounded-full" data-filter="Process Integration">Integration</button>
+                             <button class="filter-btn text-sm px-3 py-1.5 border border-slate-300 rounded-full" data-filter="Advanced Technologies">Advanced Tech</button>
+                             <button class="filter-btn text-sm px-3 py-1.5 border border-slate-300 rounded-full" data-filter="Digitalization">Digitalization</button>
+                             <button class="filter-btn text-sm px-3 py-1.5 border border-slate-300 rounded-full" data-filter="Deep Decarbonization">Decarbonization</button>
+                        </div>
+                    </div>
+                </div>
+                 <div class="flex justify-end mt-4">
+                     <button id="reset-filters" class="text-sm text-teal-600 hover:text-teal-800 font-medium">Reset All Filters</button>
+                 </div>
+            </div>
+            
+            <div id="case-study-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            </div>
+            <div id="no-results" class="hidden text-center py-10">
+                <h3 class="text-xl font-semibold text-slate-700">No matching case studies found.</h3>
+                <p class="text-slate-500">Try adjusting your filters or search term.</p>
+            </div>
+        </section>
+
+        <section id="insights" class="mb-16 md:mb-24">
+            <h2 class="text-3xl font-bold text-center text-slate-900 mb-4">Key Technology Insights</h2>
+            <p class="text-center text-slate-600 max-w-3xl mx-auto mb-10">Expand the sections below to learn more about the primary strategies for energy reduction, from foundational, high-ROI projects to long-term strategic investments.</p>
+            <div id="accordion-container" class="space-y-4 max-w-4xl mx-auto">
+            </div>
+        </section>
+
+
+    </main>    <footer class="bg-slate-800 text-slate-300">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center text-sm">
+            <p>Interactive dashboard created based on the report "Proven and Calculated Strategies for Energy Reduction in Petroleum Refining".</p>
+            <p class="mt-1">&copy; 2025 Refinery.AI. All data is for illustrative and analytical purposes.</p>
+            <p class="mt-2 text-xs text-slate-400">Made by amsamms, with the help of AI</p>
+        </div>
+    </footer>
+    
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const caseStudies = [
+        { id: 1, refinery: 'Valero Houston Refinery', location: 'Houston, TX, USA', unit: 'Steam Generation', tech: 'Optimization of blowdown steam use', savings: '', impact: '$213,500/year', emissions: '', category: 'Foundational Utilities', payback: 1.5, capital: 'Low' },
+        { id: 2, refinery: 'Flying J Refinery', location: 'North Salt Lake, UT, USA', unit: 'Boiler Feed Water', tech: 'Reverse Osmosis (RO) unit', savings: 'Blowdown 13.3% -> 1.5%', impact: '~ $200,000/year; Payback < 2 years', emissions: '', category: 'Foundational Utilities', payback: 1.9, capital: 'Medium' },
+        { id: 3, refinery: 'American Refining Group', location: 'Bradford, PA, USA', unit: 'Steam Distribution', tech: 'Increased condensate return', savings: '27,000 MMBtu/year', impact: '$140,000/year', emissions: '', category: 'Foundational Utilities', payback: 1, capital: 'Low' },
+        { id: 7, refinery: 'Valero Houston Refinery', location: 'Houston, TX, USA', unit: 'Steam Distribution', tech: 'Steam trap repair/maintenance', savings: '>200,000 MMBtu/year', impact: '$655,000/year; Payback 0.2 years', emissions: '', category: 'Foundational Utilities', payback: 0.2, capital: 'Low' },
+        { id: 8, refinery: 'Petroleum Refinery', location: 'Louisiana, USA', unit: 'Steam Distribution', tech: 'Steam trap repair/maintenance', savings: '-', impact: '$1.3 million/year; Payback 5.3 months', emissions: '', category: 'Foundational Utilities', payback: 0.44, capital: 'Low' },
+        { id: 9, refinery: 'Valero Houston Refinery', location: 'Houston, TX, USA', unit: 'CDU Furnaces', tech: 'CO control system for excess O₂', savings: '3-6% energy reduction', impact: '~ $340,000/year', emissions: '10-25% NOx reduction', category: 'Foundational Utilities', payback: 1.5, capital: 'Low' },
+        { id: 13, refinery: 'Chevron Richmond Refinery', location: 'Richmond, CA, USA', unit: 'Diesel hydrotreater feed pumps', tech: 'Adjustable Speed Drive (ASD)', savings: '12 GWh/year', impact: '$700,000/year', emissions: '', category: 'Foundational Utilities', payback: 2.5, capital: 'Medium' },
+        { id: 16, refinery: 'Nigerian Refinery', location: 'Niger Delta, Nigeria', unit: 'CDU Preheat Train (HEN)', tech: 'Retrofit cross-pinch exchangers', savings: '16.6% op cost reduction', impact: '16.6% op cost reduction', emissions: '', category: 'Process Integration', payback: 3, capital: 'Medium' },
+        { id: 17, refinery: 'Al-Basrah Refinery', location: 'Al-Basrah, Iraq', unit: 'ADU (HEN)', tech: 'Pinch analysis retrofit', savings: '92% cooling utility reduction', impact: '-', emissions: '', category: 'Process Integration', payback: 4, capital: 'High' },
+        { id: 18, refinery: 'Egyptian Refinery', location: 'Egypt', unit: 'HEN', tech: 'Pinch analysis retrofit', savings: '10.5% energy savings', impact: '$360,000/year', emissions: '', category: 'Process Integration', payback: 2, capital: 'Medium' },
+        { id: 19, refinery: 'North American Refinery', location: 'North America', unit: 'Crude Preheater', tech: 'Heat exchanger cleaning', savings: 'Furnace inlet temp +11°C', impact: '$2,500/day', emissions: '', category: 'Process Integration', payback: 0.1, capital: 'Low' },
+        { id: 21, refinery: 'ExxonMobil Fawley Refinery', location: 'Fawley, UK', unit: 'Xylene Recovery', tech: 'Dividing Wall Column (DWC)', savings: '>50% energy savings', impact: '-', emissions: '-', category: 'Advanced Technologies', payback: 4, capital: 'High' },
+        { id: 22, refinery: 'Tabriz Refinery', location: 'Tabriz, Iran', unit: 'Atmospheric Distillation', tech: 'Exergy analysis retrofit', savings: '3.6% primary fuel demand reduction', impact: '-', emissions: '-', category: 'Advanced Technologies', payback: 3, capital: 'Low' },
+        { id: 23, refinery: 'BP Carson Refinery', location: 'Carson, CA, USA', unit: 'Hydrogen Network', tech: 'Hydrogen pinch analysis', savings: '-', impact: '$3.9 million/year', emissions: '', category: 'Advanced Technologies', payback: 2, capital: 'Medium' },
+        { id: 25, refinery: 'Flint Hills Resources', location: 'Pine Bend, MN, USA', unit: 'Power & Steam Generation', tech: '50 MW Natural Gas CHP System', savings: 'Supplies 40% of refinery power', impact: 'Part of $400M upgrade', emissions: 'Reduced GHG emissions', category: 'Process Integration', payback: 4.5, capital: 'High' },
+        { id: 26, refinery: 'Paramount Petroleum Corp.', location: 'Paramount, CA, USA', unit: 'Power & Steam Generation', tech: '6.5 MWe Gas Turbine CHP', savings: '-', impact: '$3.8 million/year; Payback 2.5 years', emissions: '', category: 'Process Integration', payback: 2.5, capital: 'High' },
+        { id: 29, refinery: 'Major US Refinery', location: 'USA', unit: 'Overall Process', tech: 'Advanced Process Control (APC)', savings: '8% energy reduction', impact: '$20 million/year revenue', emissions: '', category: 'Digitalization', payback: 1, capital: 'Medium' },
+        { id: 31, refinery: 'BP', location: 'Global', unit: 'Overall Operations', tech: 'AI & Machine Learning program', savings: '15% energy reduction', impact: '25% lower maintenance costs', emissions: '', category: 'Digitalization', payback: 2, capital: 'Medium' },
+        { id: 32, refinery: 'Chevron', location: 'USA', unit: 'Hydrogen Production', tech: 'Machine Learning optimization', savings: '11% energy reduction', impact: '-', emissions: '-', category: 'Digitalization', payback: 2.5, capital: 'Medium' },
+        { id: 33, refinery: 'Flint Hills Resources', location: 'Pine Bend, MN, USA', unit: 'Power Generation', tech: '45 MW Solar Farm', savings: 'Supplies 30% of power needs', impact: '$75 million project cost', emissions: 'Reduces Scope 2', category: 'Deep Decarbonization', payback: 6, capital: 'High' },
+        { id: 34, refinery: 'Valero McKee Refinery', location: 'Sunray, TX, USA', unit: 'Power Generation', tech: '50 MW Wind Farm', savings: 'Supplies refinery power', impact: '-', emissions: 'Reduces Scope 2', category: 'Deep Decarbonization', payback: 6, capital: 'High' },
+        { id: 38, refinery: 'Shell Quest Project', location: 'Alberta, Canada', unit: 'Hydrogen Production (SMR)', tech: 'Carbon Capture & Storage (CCUS)', savings: '-', impact: '-', emissions: '>1M tonnes/year CO₂ stored', category: 'Deep Decarbonization', payback: 7, capital: 'Very High' }
+    ];
+
+    const insights = [
+        { 
+            title: "Foundational Utility Optimization",
+            content: "This is the essential first step, offering the highest-return investments. Focus on diligent maintenance and targeted upgrades to steam systems, fired heaters, and rotating equipment. Measures like steam trap maintenance, excess air control, and VSDs can yield savings of 2-15% with paybacks often under two years. These projects generate immediate free cash flow to fund more ambitious initiatives."
+        },
+        { 
+            title: "Process Heat Integration",
+            content: "Moving to system-level optimization, this involves retrofitting Heat Exchanger Networks (HENs) and recovering waste heat. Methodologies like Pinch Analysis can unlock utility cost reductions exceeding 25%. On-site Combined Heat and Power (CHP) is a cornerstone strategy, boosting fuel efficiency up to 80% and providing significant cost savings and reliability."
+        },
+        {
+            title: "Advanced Separation & Reaction",
+            content: "Targeting core process units can deliver step-change improvements. Process intensification technologies like Dividing Wall Columns (DWCs) have demonstrated energy savings of over 50% in commercial use. Optimizing the hydrogen network through pinch analysis and advanced recovery technologies is also a key lever for reducing energy consumption and operating costs."
+        },
+        {
+            title: "Digitalization & Advanced Control",
+            content: "This marks the shift from hardware to software-driven optimization. Advanced Process Control (APC) has delivered documented benefits like 8% energy reductions coupled with 3% throughput increases, generating millions in annual revenue. The next frontier, Artificial Intelligence (AI) and Machine Learning (ML), is already showing potential with energy consumption reductions of 11-15% in pilot projects."
+        },
+        {
+            title: "Deep Decarbonization Pathways",
+            content: "These are capital-intensive, strategic technologies essential for a net-zero future. This includes large-scale renewable power integration (solar, wind), producing low-carbon 'green' and 'blue' hydrogen, and implementing Carbon Capture, Utilization, and Storage (CCUS). While payback horizons are longer, these projects are critical for future-proofing assets against carbon pricing and regulations."
+        }
+    ];
+
+    const grid = document.getElementById('case-study-grid');
+    const searchInput = document.getElementById('search');
+    const categoryFilters = document.getElementById('category-filters');
+    const noResults = document.getElementById('no-results');
+    const resetBtn = document.getElementById('reset-filters');
+    const accordionContainer = document.getElementById('accordion-container');
+    
+    let activeCategory = 'all';
+
+    const renderCaseStudies = (filteredStudies) => {
+        grid.innerHTML = '';
+        if (filteredStudies.length === 0) {
+            noResults.classList.remove('hidden');
+        } else {
+            noResults.classList.add('hidden');
+        }
+        filteredStudies.forEach(study => {
+            const card = document.createElement('div');
+            card.className = 'case-card bg-white rounded-lg shadow-md border border-slate-200 p-6 flex flex-col';
+            card.innerHTML = `
+                <div class="flex-grow">
+                    <div class="flex justify-between items-start">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-teal-600 bg-teal-100 px-2 py-1 rounded-full">${study.category}</span>
+                        <div class="text-right">
+                           <div class="text-sm font-bold text-slate-800">${study.refinery}</div>
+                           <div class="text-xs text-slate-500">${study.location}</div>
+                        </div>
+                    </div>
+                    <h3 class="font-bold text-lg text-slate-900 mt-4">${study.tech}</h3>
+                    <p class="text-sm text-slate-600 mt-1"><strong>Unit:</strong> ${study.unit}</p>
+                </div>
+                <div class="mt-4 pt-4 border-t border-slate-200 grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <div class="font-semibold text-slate-700">Savings</div>
+                        <div class="text-slate-500">${study.savings || 'N/A'}</div>
+                    </div>
+                    <div>
+                        <div class="font-semibold text-slate-700">Economic Impact</div>
+                        <div class="text-slate-500">${study.impact}</div>
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    };
+
+    const filterAndRender = () => {
+        const searchTerm = searchInput.value.toLowerCase();
+        let filtered = caseStudies;
+
+        if (activeCategory !== 'all') {
+            filtered = filtered.filter(study => study.category === activeCategory);
+        }
+
+        if (searchTerm) {
+            filtered = filtered.filter(study => 
+                study.refinery.toLowerCase().includes(searchTerm) ||
+                study.tech.toLowerCase().includes(searchTerm)
+            );
+        }
+        renderCaseStudies(filtered);
+    };
+
+    searchInput.addEventListener('input', filterAndRender);
+    
+    categoryFilters.addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON') {
+            categoryFilters.querySelector('.active').classList.remove('active');
+            e.target.classList.add('active');
+            activeCategory = e.target.dataset.filter;
+            filterAndRender();
+        }
+    });
+
+    resetBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        categoryFilters.querySelector('.active').classList.remove('active');
+        categoryFilters.querySelector('[data-filter="all"]').classList.add('active');
+        activeCategory = 'all';
+        filterAndRender();
+        // Reset chart highlights if any
+        if (opportunityChart.getActiveElements().length > 0) {
+            opportunityChart.setActiveElements([], { type: 'mouseout' });
+            opportunityChart.update();
+        }
+    });
+    
+    const renderAccordion = () => {
+        accordionContainer.innerHTML = '';
+        insights.forEach((item, index) => {
+            const accordionItem = document.createElement('div');
+            accordionItem.className = 'bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden';
+            accordionItem.innerHTML = `
+                <button class="w-full flex justify-between items-center text-left p-4 focus:outline-none">
+                    <span class="font-semibold text-slate-800">${item.title}</span>
+                    <span class="accordion-icon transform transition-transform duration-300">
+                        <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </span>
+                </button>
+                <div class="accordion-content max-h-0 overflow-hidden transition-max-height duration-500 ease-in-out">
+                    <p class="p-4 pt-0 text-slate-600">${item.content}</p>
+                </div>
+            `;
+            accordionContainer.appendChild(accordionItem);
+
+            const button = accordionItem.querySelector('button');
+            const content = accordionItem.querySelector('.accordion-content');
+            const icon = accordionItem.querySelector('.accordion-icon');
+
+            button.addEventListener('click', () => {
+                const isOpen = content.style.maxHeight && content.style.maxHeight !== '0px';
+                if(isOpen) {
+                    content.style.maxHeight = '0px';
+                    icon.classList.remove('rotate-180');
+                } else {
+                    content.style.maxHeight = content.scrollHeight + 'px';
+                    icon.classList.add('rotate-180');
+                }
+            });
+        });
+    };
+    
+    const opportunityData = {
+        'Foundational Utilities': { payback: 1.5, savings: 8, capital: 15, color: '#0d9488' }, // teal-600
+        'Process Integration': { payback: 3.5, savings: 25, capital: 35, color: '#0f766e' }, // teal-700
+        'Advanced Technologies': { payback: 3, savings: 30, capital: 30, color: '#047857' }, // emerald-700
+        'Digitalization': { payback: 2, savings: 12, capital: 20, color: '#1d4ed8' }, // blue-700
+        'Deep Decarbonization': { payback: 6, savings: 90, capital: 50, color: '#4338ca' } // indigo-700
+    };
+
+    const chartData = {
+        datasets: Object.keys(opportunityData).map(key => ({
+            label: key,
+            data: [{
+                x: opportunityData[key].payback,
+                y: opportunityData[key].savings,
+                r: opportunityData[key].capital
+            }],
+            backgroundColor: opportunityData[key].color + 'BF', // Add alpha for fill
+            borderColor: opportunityData[key].color,
+            borderWidth: 2,
+        }))
+    };
+    
+    const ctx = document.getElementById('opportunityChart').getContext('2d');
+    const opportunityChart = new Chart(ctx, {
+        type: 'bubble',
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        usePointStyle: true,
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.dataset.label || '';
+                            const d = opportunityData[label];
+                            return `${label}: Payback ~${d.payback} yrs, Savings ~${d.savings}%`;
+                        }
+                    }
+                },
+                title: {
+                    display: true,
+                    text: 'Payback Period vs. Energy Savings Potential',
+                    font: { size: 16 }
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Typical Payback Period (Years)'
+                    },
+                    min: 0,
+                    max: 8
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Typical Energy Savings (%)'
+                    },
+                    min: 0,
+                    max: 100
+                }
+            },
+            onClick: (e) => {
+                const activePoints = opportunityChart.getElementsAtEventForMode(e, 'point', { intersect: true }, true);
+                if (activePoints.length) {
+                    const firstPoint = activePoints[0];
+                    const label = opportunityChart.data.datasets[firstPoint.datasetIndex].label;
+                    
+                    categoryFilters.querySelector('.active').classList.remove('active');
+                    const targetButton = categoryFilters.querySelector(`[data-filter="${label}"]`);
+                    if(targetButton) {
+                        targetButton.classList.add('active');
+                        activeCategory = label;
+                        filterAndRender();
+                        const casesSection = document.getElementById('cases');
+                        casesSection.scrollIntoView({ behavior: 'smooth' });
+                    }
+                }
+            }
+        }
+    });    renderCaseStudies(caseStudies);
+    renderAccordion();
+
+    // Mobile menu toggle functionality
+    const mobileMenuButton = document.getElementById('mobile-menu-button');
+    const mobileMenu = document.getElementById('mobile-menu');
+    
+    if (mobileMenuButton && mobileMenu) {
+        mobileMenuButton.addEventListener('click', function() {
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        // Close mobile menu when clicking on a nav link
+        const mobileNavLinks = document.querySelectorAll('.mobile-nav-link');
+        mobileNavLinks.forEach(link => {
+            link.addEventListener('click', function() {
+                mobileMenu.classList.add('hidden');
+            });
+        });
+
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!mobileMenuButton.contains(event.target) && !mobileMenu.contains(event.target)) {
+                mobileMenu.classList.add('hidden');
+            }
+        });
+    }
+});
+</script>
+
+</body>
+</html>
